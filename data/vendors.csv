@@ -1,0 +1,9 @@
+vendor_code,vendor_name,country,lead_time_days,payment_terms,currency,contact_email,phone,address
+BXE,Bien Xanh Export Co.,Vietnam,56,Net 60,USD,orders@bienxanh-export.example,+84 292 555 0142,"Lot 12, Tra Noc Industrial Zone, Can Tho, Vietnam"
+AFS,Austral Frío SA,Chile,,CAD,USD,export@australfrio.example,+56 65 555 0199,"Ruta 5 Sur km 1023, Puerto Montt, Chile"
+MNP,Maritime Northern Pack,Canada,14,Net 30,CAD,sales@mnpack.example,+1 902 555 0117,"44 Wharf Rd, Yarmouth, NS, Canada"
+ASP,Aleutian Shore Products,USA,28,Net 30,USD,orders@aleutianshore.example,+1 907 555 0160,"1200 Ballyhoo Rd, Dutch Harbor, AK"
+DLC,Downeast Lobster Co.,USA,2-3 wks,Net 15,USD,hello@downeastlobster.example,+1 207 555 0133,"9 Pound Ln, Stonington, ME"
+BBD,Buzzards Bay Day Boats,USA,1,Net 7,USD,dock@bbdayboats.example,+1 508 555 0108,"State Pier, New Bedford, MA"
+OCN,Oceanic Trading Corp (old),USA,45,Net 45,USD,,,"PO Box 771, Fall River, MA"
+HCS,Harbor Cold Storage,USA,,Net 30,USD,billing@harborcold.example,+1 508 555 0190,"300 Logan St, New Bedford, MA"
