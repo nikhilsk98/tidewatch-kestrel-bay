@@ -44,6 +44,25 @@ CREATE TABLE IF NOT EXISTS handled (
   CHECK (cleared_at IS NULL OR cleared_at >= created_at)
 );
 
+-- NEW: codes in Dana's tables must match the loader's cleaned format
+-- (trimmed, upper case), or her entries would silently never match.
+-- Added only if missing, so this works on existing tables too.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'vendor_settings_code_clean') THEN
+    ALTER TABLE vendor_settings ADD CONSTRAINT vendor_settings_code_clean
+      CHECK (vendor_code = upper(btrim(vendor_code)));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'item_settings_code_clean') THEN
+    ALTER TABLE item_settings ADD CONSTRAINT item_settings_code_clean
+      CHECK (item_code = upper(btrim(item_code)));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'handled_code_clean') THEN
+    ALTER TABLE handled ADD CONSTRAINT handled_code_clean
+      CHECK (item_code = upper(btrim(item_code)));
+  END IF;
+END $$;
+
 -- 2. Rebuilt tables ---------------------------------------------
 -- Drop views first by name, then the tables together.
 -- No CASCADE: if anything else depends on these, Postgres stops
@@ -65,7 +84,7 @@ CREATE TABLE items (
   item_code      TEXT PRIMARY KEY,   -- cleaned: trimmed, upper case
   description    TEXT NOT NULL,
   category       TEXT,
-  storage        TEXT,               -- FROZEN or FRESH
+  storage        TEXT CHECK (storage IN ('FROZEN', 'FRESH')),  -- NEW: views rely on exact values
   sell_uom       TEXT NOT NULL CHECK (sell_uom IN ('CS', 'LB')),
   case_lb        NUMERIC CHECK (case_lb > 0),  -- pounds per case
   vendor_code    TEXT REFERENCES vendors,
