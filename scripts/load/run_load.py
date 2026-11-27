@@ -36,6 +36,8 @@ DEFAULT_SETTINGS = [
      "Lots with less than this many months to expiry don't count toward future sales (Dana)."),
     ("aging_received_days", "90",
      "Flag stock received this many days ago or more. Our assumption, not Dana's rule."),
+    ("projection_weeks", "26",
+     "How far ahead Tidewatch projects stock. Must cover the longest lead time plus cushion."),
 ]
 
 # Lead time and cushion in days, confirmed by Dana ("Those are all right").
@@ -92,13 +94,15 @@ def validate_settings(cur) -> None:
     except (KeyError, ValueError):
         raise SystemExit("Setting 'today' is missing or not a date (YYYY-MM-DD).")
 
-    for key in ("expiry_cutoff_months", "aging_received_days"):
+        # (setting, smallest allowed value)
+    for key, minimum in (("expiry_cutoff_months", 0), ("aging_received_days", 0),
+                         ("projection_weeks", 1)):
         try:
             value = int(settings[key])
         except (KeyError, ValueError):
             raise SystemExit(f"Setting '{key}' is missing or not a whole number.")
-        if value < 0:
-            raise SystemExit(f"Setting '{key}' can't be negative.")
+        if value < minimum:
+            raise SystemExit(f"Setting '{key}' must be at least {minimum}.")
 
 
 def load_prepared_data(cur, prep: Prepared) -> None:

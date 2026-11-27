@@ -29,10 +29,12 @@ CHECKS = [
      "SELECT count(*) FROM items WHERE item_code <> upper(btrim(item_code))", 0),
 
     # --- Lots and the lot_status view --------------------------------------
-    ("76 lots sellable on Nov 16",
-     "SELECT count(*) FROM lot_status WHERE is_sellable", 76),
-    ("11 lots inside the 6-month line",
-     "SELECT count(*) FROM lot_status WHERE unavailable_reason LIKE 'Inside%'", 11),
+    ("82 lots sellable on Nov 16",
+     "SELECT count(*) FROM lot_status WHERE is_sellable", 82),
+    ("5 lots inside the 6-month line (frozen only)",
+     "SELECT count(*) FROM lot_status WHERE unavailable_reason LIKE 'Inside%'", 5),
+    ("No fresh lot judged by the 6-month rule",
+     "SELECT count(*) FROM lot_status WHERE storage = 'FRESH' AND unavailable_reason LIKE 'Inside%'", 0),
     ("7 lots expired",
      "SELECT count(*) FROM lot_status WHERE unavailable_reason = 'Expired'", 7),
     ("5 damaged lots, none sellable",

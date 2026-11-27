@@ -165,12 +165,20 @@ WITH s AS (
 with_deadline AS (
   SELECT
     l.*,
+    i.storage,
     s.today,
     s.cutoff,
-    -- the one cutoff calculation: last day the lot can be sold at full value
-    (l.expiry_date - make_interval(months => s.cutoff))::date AS sellable_until
-  FROM lots l CROSS JOIN s
+    -- the one cutoff calculation: last day the lot can be sold at full value.
+    -- Dana's 6-month rule is for frozen stock; fresh fish lasts days, so a
+    -- fresh lot is sellable until the day before it expires.
+    CASE WHEN i.storage = 'FRESH' THEN l.expiry_date - 1
+         ELSE (l.expiry_date - make_interval(months => s.cutoff))::date
+    END AS sellable_until
+  FROM lots l
+  JOIN items i ON i.item_code = l.item_code
+  CROSS JOIN s
 ),
+
 with_reason AS (
   SELECT
     d.*,
@@ -180,8 +188,8 @@ with_reason AS (
       WHEN d.location = 'DAMAGED'              THEN 'Damaged'
       WHEN d.expiry_date IS NULL               THEN 'Expiry unknown: review required'
       WHEN d.expiry_date <= d.today            THEN 'Expired'
-      WHEN d.today > d.sellable_until          THEN 'Inside the ' || d.cutoff || '-month line'
-    END AS unavailable_reason          -- NULL for sellable lots, by design
+      WHEN d.storage <> 'FRESH'
+           AND d.today > d.sellable_until      THEN 'Inside the ' || d.cutoff || '-month line'    END AS unavailable_reason          -- NULL for sellable lots, by design
   FROM with_deadline d
 )
 SELECT
