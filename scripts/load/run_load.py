@@ -113,13 +113,32 @@ def load_prepared_data(cur, prep: Prepared) -> None:
         "case_lb, vendor_code, source_status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
         prep.items,
     )
-    # Steps 17-19: lots, adjustments, sales and purchase orders go here.
+    cur.executemany(
+        "INSERT INTO lots (lot_no, item_code, location, qty, pack_date, expiry_date, "
+        "received_date, unit_cost) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+        prep.lots,
+    )
+    cur.executemany(
+        "INSERT INTO adjustments (ref, item_code, qty) VALUES (%s, %s, %s)",
+        prep.adjustments,
+    )
+    cur.executemany(
+        "INSERT INTO sales (order_no, line_no, order_date, ship_date, customer_code, "
+        "customer_type, item_code, qty, status, is_demand, exclude_reason) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        prep.sales,
+    )
+    # Step 19: purchase orders go here.
     cur.executemany(
         "INSERT INTO cleaning_log (source_file, item_code, detail, action, reason) "
         "VALUES (%s, %s, %s, %s, %s)",
         prep.cleaning_log,
     )
     cur.execute("INSERT INTO import_info (key, value) VALUES ('loaded_at', now()::text)")
+    cur.execute(
+        "INSERT INTO import_info (key, value) VALUES ('snapshot_date', %s)",
+        (prep.snapshot_date,),
+    )
 
 
 def validate_loaded_data(cur, prep: Prepared) -> None:
@@ -128,6 +147,9 @@ def validate_loaded_data(cur, prep: Prepared) -> None:
     expected = {
         "vendors": len(prep.vendors),
         "items": len(prep.items),
+        "lots": len(prep.lots),
+        "adjustments": len(prep.adjustments),
+        "sales": len(prep.sales),
         "cleaning_log": len(prep.cleaning_log),
     }
     for table, count in expected.items():
@@ -167,10 +189,16 @@ def validate_loaded_data(cur, prep: Prepared) -> None:
 
 def report(cur, prep: Prepared) -> None:
     """Print row counts and any warnings, so you can see what happened."""
-    tables = ["vendors", "items", "cleaning_log", "settings", "vendor_settings", "item_settings"]
+    tables = ["vendors", "items", "lots", "adjustments", "sales", "cleaning_log",
+              "settings", "vendor_settings", "item_settings"]
     for table in tables:
         cur.execute(f"SELECT count(*) FROM {table}")
         print(f"  {table:<16} {cur.fetchone()[0]:>5} rows")
+    cur.execute("SELECT count(*) FROM sales WHERE is_demand")
+    print(f"  sales counted as demand: {cur.fetchone()[0]}")
+    cur.execute("SELECT count(*) FROM sales WHERE status = 'OPEN'")
+    print(f"  open order lines (promised stock): {cur.fetchone()[0]}")
+    print(f"  Stock as of: {prep.snapshot_date}")
     if prep.warnings:
         print("Warnings:")
         for warning in prep.warnings:
