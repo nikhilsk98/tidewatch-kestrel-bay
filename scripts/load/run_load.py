@@ -128,7 +128,11 @@ def load_prepared_data(cur, prep: Prepared) -> None:
         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         prep.sales,
     )
-    # Step 19: purchase orders go here.
+    cur.executemany(
+        "INSERT INTO purchase_orders (po_no, line_no, vendor_code, item_code, order_date, "
+        "expected_date, qty_remaining) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        prep.purchase_orders,
+    )
     cur.executemany(
         "INSERT INTO cleaning_log (source_file, item_code, detail, action, reason) "
         "VALUES (%s, %s, %s, %s, %s)",
@@ -150,6 +154,7 @@ def validate_loaded_data(cur, prep: Prepared) -> None:
         "lots": len(prep.lots),
         "adjustments": len(prep.adjustments),
         "sales": len(prep.sales),
+        "purchase_orders": len(prep.purchase_orders),
         "cleaning_log": len(prep.cleaning_log),
     }
     for table, count in expected.items():
@@ -189,7 +194,7 @@ def validate_loaded_data(cur, prep: Prepared) -> None:
 
 def report(cur, prep: Prepared) -> None:
     """Print row counts and any warnings, so you can see what happened."""
-    tables = ["vendors", "items", "lots", "adjustments", "sales", "cleaning_log",
+    tables = ["vendors", "items", "lots", "adjustments", "sales", "purchase_orders", "cleaning_log",
               "settings", "vendor_settings", "item_settings"]
     for table in tables:
         cur.execute(f"SELECT count(*) FROM {table}")
@@ -198,6 +203,8 @@ def report(cur, prep: Prepared) -> None:
     print(f"  sales counted as demand: {cur.fetchone()[0]}")
     cur.execute("SELECT count(*) FROM sales WHERE status = 'OPEN'")
     print(f"  open order lines (promised stock): {cur.fetchone()[0]}")
+    cur.execute("SELECT count(*) FROM po_status WHERE is_overdue")
+    print(f"  open PO lines overdue (arrival unconfirmed): {cur.fetchone()[0]}")
     print(f"  Stock as of: {prep.snapshot_date}")
     if prep.warnings:
         print("Warnings:")

@@ -28,6 +28,7 @@ QTY_UNITS = ("CS", "LB", "KG")                            # units a quantity may
 LOCATIONS = ("NB", "PVD", "HCS", "QA-HOLD", "DAMAGED")    # the only locations we accept
 SALE_STATUSES = ("INVOICED", "OPEN", "CANCELLED")          # the only sales statuses we accept
 CUSTOMER_TYPES = ("RESTAURANT", "GROCERY", "INTERNAL", "CRUISE")  # types the demand rules know
+PO_STATUSES = ("OPEN", "RECEIVED", "CLOSED", "CANCELLED")  # the only PO statuses we accept
 
 
 # ---------------------------------------------------------------------
@@ -41,6 +42,7 @@ class Prepared:
     lots: list = field(default_factory=list)          # rows for the lots table
     adjustments: list = field(default_factory=list)   # rows for the adjustments table
     sales: list = field(default_factory=list)         # rows for the sales table
+    purchase_orders: list = field(default_factory=list)  # rows for the purchase_orders table
     snapshot_date: str = None                         # which inventory night was used
     cleaning_log: list = field(default_factory=list)  # (source_file, item_code, detail, action, reason)
     warnings: list = field(default_factory=list)      # printed at the end, don't stop the load
@@ -397,6 +399,88 @@ def prepare_sales(data_dir: Path, prep: Prepared) -> None:
 
 
 # ---------------------------------------------------------------------
+# purchase_orders.csv -> purchase_orders
+# Removes exact duplicate lines, keeps only Open lines, and stores what
+# is still to come (ordered minus received). Expected dates are kept as
+# the vendor gave them; the po_status view labels them unconfirmed.
+# ---------------------------------------------------------------------
+def prepare_purchase_orders(data_dir: Path, prep: Prepared) -> None:
+    source = "purchase_orders.csv"
+    df = read_csv(data_dir, source,
+                  ["po_no", "line_no", "vendor_code", "item_code", "order_date",
+                   "expected_date", "qty_ordered", "qty_received", "uom", "status"])
+    items = {row[0]: (row[4], row[5]) for row in prep.items}  # code -> (sell_uom, case_lb)
+    item_vendor = {row[0]: row[6] for row in prep.items}      # code -> vendor_code
+    vendor_codes = {v[0] for v in prep.vendors}
+
+    first_seen = {}   # (po_no, line_no) -> the full row, to spot duplicates
+    not_open = {}     # status -> number of lines skipped
+
+    for row in df.itertuples(index=False):
+        po_no = row.po_no.strip()
+        where = f"{source}, {po_no} line {row.line_no}"
+        try:
+            line_no = int(row.line_no)
+            ordered = float(row.qty_ordered)
+            received = float(row.qty_received) if row.qty_received.strip() else 0.0
+        except ValueError:
+            raise SystemExit(f"{where}: line number or quantities aren't numbers")
+
+        # Duplicates: an exact copy is counted once; a different line with the
+        # same number means we can't tell which is right, so stop.
+        key = (po_no, line_no)
+        if key in first_seen:
+            if first_seen[key] == tuple(row):
+                prep.cleaning_log.append((source, clean_code(row.item_code), f"{po_no} line {line_no}",
+                                          "excluded", "Exact duplicate line; counted once"))
+                continue
+            raise SystemExit(f"{where}: appears twice with different details")
+        first_seen[key] = tuple(row)
+
+        status = row.status.strip().upper()
+        if status not in PO_STATUSES:
+            raise SystemExit(f"{where}: unknown status '{row.status}'")
+        if status != "OPEN":
+            not_open[status] = not_open.get(status, 0) + 1   # finished orders
+            continue
+
+        code = clean_code(row.item_code)
+        vendor = clean_code(row.vendor_code)
+        if code not in items:
+            raise SystemExit(f"{where}: item {code} isn't in items.csv")
+        if vendor not in vendor_codes:
+            raise SystemExit(f"{where}: vendor {vendor} isn't in vendors.csv")
+        if item_vendor[code] != vendor:
+            prep.warnings.append(f"{po_no}: {code} is ordered from {vendor}, but items.csv says {item_vendor[code]}")
+
+        remaining = ordered - received                     # Dana: 600 of 1,000 arrived -> 400 still open
+        if remaining < 0:
+            raise SystemExit(f"{where}: more received ({received:g}) than ordered ({ordered:g})")
+        if remaining == 0:
+            prep.cleaning_log.append((source, code, f"{po_no} line {line_no}", "excluded",
+                                      "Marked Open but fully received"))
+            continue
+        if received > 0:
+            prep.cleaning_log.append((source, code, f"{po_no} line {line_no}", "flagged",
+                                      f"Partly received: {received:g} of {ordered:g}; {remaining:g} still to come"))
+
+        converted, _ = to_sell_uom(remaining, row.uom, code, items)
+        prep.purchase_orders.append((
+            po_no,                                     # po_no
+            line_no,                                   # line_no
+            vendor,                                    # vendor_code
+            code,                                      # item_code
+            parse_date(row.order_date, where),         # order_date
+            parse_date(row.expected_date, where),      # expected_date: vendor's estimate, unconfirmed
+            converted,                                 # qty_remaining, in the item's selling unit
+        ))
+
+    for status, count in sorted(not_open.items()):
+        prep.cleaning_log.append((source, None, f"{count} lines", "excluded",
+                                  f"Status {status.title()}: finished order, not incoming stock"))
+
+
+# ---------------------------------------------------------------------
 # Entry point: prepare every file, in dependency order.
 # ---------------------------------------------------------------------
 def prepare_all(data_dir: Path) -> Prepared:
@@ -405,5 +489,5 @@ def prepare_all(data_dir: Path) -> Prepared:
     prepare_items(data_dir, prep)     # second: inventory, sales and POs check items
     prepare_inventory(data_dir, prep)
     prepare_sales(data_dir, prep)
-    # Step 19 adds purchase orders here.
+    prepare_purchase_orders(data_dir, prep)
     return prep
