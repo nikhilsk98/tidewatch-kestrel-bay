@@ -2,20 +2,17 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { getActiveHandled } from "@/lib/handled";
 import { getLoadInfo } from "@/lib/meta";
-import { getItemPlans } from "@/lib/projection";
+import { getItemPlans, ORDER_SOON_DAYS } from "@/lib/projection";
 import { loadPlanningRules, SettingsError } from "@/lib/settings";
 import { getStuckStock } from "@/lib/stuck";
 import { MondayWorkspace } from "./_components/MondayWorkspace";
 import { SettingsErrorNotice } from "./_components/SettingsErrorNotice";
+import { WorkspaceSkeleton } from "./_components/Skeletons";
 
 // The page shell renders at once; the workspace streams in when the data is ready.
 export default function MondayPurchasingPage() {
   return (
-    <Suspense
-      fallback={
-        <p className="p-8 text-sm text-ink-muted">Loading Monday purchasing…</p>
-      }
-    >
+    <Suspense fallback={<WorkspaceSkeleton />}>
       <Workspace />
     </Suspense>
   );
@@ -53,6 +50,7 @@ async function Workspace() {
       stockAsOf={data.loadInfo.snapshotDate}
       projectionWeeks={data.settings.projectionWeeks}
       agingReceivedDays={data.settings.agingReceivedDays}
+      orderSoonDays={ORDER_SOON_DAYS}
     />
   );
 }

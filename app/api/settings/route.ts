@@ -1,6 +1,28 @@
 import { connection } from "next/server";
 import { query } from "@/lib/db";
 import { loadPlanningRules, SettingsError } from "@/lib/settings";
+import { applySettingsChange } from "@/lib/settingsUpdate";
+
+/**
+ * PATCH /api/settings: save Dana's changes in one transaction.
+ * Body: { settings?: { key: value }, vendors?: [{ vendorCode, leadTimeDays, bufferDays }],
+ *         items?: [{ itemCode, reorderEnabled: true | false | null }] }.
+ * An invalid change is rejected whole, with a message naming the setting.
+ */
+export async function PATCH(request: Request) {
+  await connection(); // always run fresh, never cached
+  try {
+    const body = await request.json().catch(() => null);
+    const result = await applySettingsChange(body);
+    if (!result.ok) {
+      return Response.json({ ok: false, error: result.error }, { status: 400 });
+    }
+    return Response.json({ ok: true, saved: result.change });
+  } catch (error) {
+    console.error(error);
+    return Response.json({ ok: false, error: "Server error" }, { status: 500 });
+  }
+}
 
 /** GET /api/settings: Dana's rules, lead times and reorder choices, checked. */
 export async function GET() {

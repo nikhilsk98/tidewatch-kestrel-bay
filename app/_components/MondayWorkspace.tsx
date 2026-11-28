@@ -20,6 +20,7 @@ type Props = {
   stockAsOf: string | null;
   projectionWeeks: number;
   agingReceivedDays: number;
+  orderSoonDays: number; // passed from the server: lib/projection.ts can't be imported into the browser
 };
 
 /**
@@ -54,6 +55,7 @@ export function MondayWorkspace(props: Props) {
       <SummaryCards
         plans={props.plans}
         stuckSummary={props.stuck.summary}
+        orderSoonDays={props.orderSoonDays}
         risk={filters.risk}
         onRisk={(risk) => setFilters({ ...filters, risk })}
       />

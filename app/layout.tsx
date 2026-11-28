@@ -25,8 +25,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-fog text-ink lg:flex">
+        {/* Lets keyboard users jump past the navigation. */}
+        <a
+          href="#content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-full focus:bg-kelp focus:px-4 focus:py-2 focus:text-white"
+        >
+          Skip to main content
+        </a>
         <Sidebar />
-        <div className="min-w-0 flex-1">{children}</div>
+        <div id="content" tabIndex={-1} className="min-w-0 flex-1 focus:outline-none">
+          {children}
+        </div>
       </body>
     </html>
   );

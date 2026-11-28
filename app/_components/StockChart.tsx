@@ -115,20 +115,21 @@ export function StockChart({ plan, planningDate }: Props) {
                 }}
               />
             )}
-            <Line
-              name="Safe view (no PO counted)"
-              dataKey="safe"
-              stroke="var(--kelp)"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
+            {/* The safe line is drawn last so it stays visible where both views are equal. */}
             <Line
               name="If vendor dates hold"
               dataKey="scenario"
               stroke="var(--amber-accent)"
               strokeWidth={2}
               strokeDasharray="6 4"
+              dot={false}
+              isAnimationActive={false}
+            />
+            <Line
+              name="Safe view (no PO counted)"
+              dataKey="safe"
+              stroke="var(--kelp)"
+              strokeWidth={2}
               dot={false}
               isAnimationActive={false}
             />

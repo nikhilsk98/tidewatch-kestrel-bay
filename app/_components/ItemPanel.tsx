@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { formatDate, formatQty } from "@/lib/format";
 import type { ItemDetail } from "@/lib/itemDetail";
 import { actionFor, explainPlan, flagsFor } from "@/lib/planLabels";
 import type { ItemPlan } from "@/lib/projection";
 import { DemandWeeks } from "./DemandWeeks";
+import { HandledSection } from "./HandledSection";
 import { Icon } from "./Icon";
 import { IncomingPOs } from "./IncomingPOs";
 import { LotsTable } from "./LotsTable";
@@ -36,6 +38,8 @@ type Load =
 export function ItemPanel({ plan, planningDate, projectionWeeks, onClose }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [load, setLoad] = useState<Load>({ state: "loading" });
+  const [version, setVersion] = useState(0); // bumped after a save, to fetch fresh evidence
+  const router = useRouter();
 
   useEffect(() => {
     const dialog = dialogRef.current!;
@@ -56,7 +60,7 @@ export function ItemPanel({ plan, planningDate, projectionWeeks, onClose }: Prop
         if (error.name !== "AbortError") setLoad({ state: "error", message: error.message });
       });
     return () => controller.abort();
-  }, [plan.itemCode]);
+  }, [plan.itemCode, version]);
 
   const action = actionFor(plan, projectionWeeks);
 
@@ -125,7 +129,15 @@ export function ItemPanel({ plan, planningDate, projectionWeeks, onClose }: Prop
             </p>
           )}
           {load.state === "ready" && (
-            <Evidence detail={load.detail} plan={plan} planningDate={planningDate} />
+            <Evidence
+              detail={load.detail}
+              plan={plan}
+              planningDate={planningDate}
+              onChanged={() => {
+                setVersion((v) => v + 1); // reload this panel's evidence
+                router.refresh(); // and the page behind it (Handled tags, counts)
+              }}
+            />
           )}
         </div>
       </div>
@@ -137,10 +149,12 @@ function Evidence({
   detail,
   plan,
   planningDate,
+  onChanged,
 }: {
   detail: ItemDetail;
   plan: ItemPlan;
   planningDate: string;
+  onChanged: () => void;
 }) {
   const uom = plan.sellUom;
   return (
@@ -163,27 +177,8 @@ function Evidence({
       <PanelSection title="Lead time and order-by date">
         <OrderMath plan={plan} />
       </PanelSection>
-      <PanelSection title="Handled notes">
-        {detail.handled.length === 0 ? (
-          <p className="text-sm text-ink-muted">No active handled notes.</p>
-        ) : (
-          <ul className="space-y-2 text-sm">
-            {detail.handled.map((h) => (
-              <li key={h.id} className="rounded-xl bg-fog p-3">
-                <p className="font-medium">Handled</p>
-                {h.note && <p>{h.note}</p>}
-                <p className="text-xs text-ink-muted">
-                  {h.qty !== null && `${formatQty(h.qty, uom)} · `}
-                  {h.expectedDate && `expected ${formatDate(h.expectedDate)} · `}
-                  noted {formatDate(h.createdAt.slice(0, 10), "medium")}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="mt-2 text-xs text-ink-muted">
-          A handled note doesn&apos;t add supply or change any date above.
-        </p>
+      <PanelSection title="Handled">
+        <HandledSection plan={plan} notes={detail.handled} onChanged={onChanged} />
       </PanelSection>
       {detail.cleaningNotes.length > 0 && (
         <PanelSection title="Data notes for this item">

@@ -9,7 +9,7 @@ import {
 import { loadPlanningRules } from "@/lib/settings";
 import { getStockPositions, type StockPosition } from "@/lib/stock";
 
-const ORDER_SOON_DAYS = 14; // "order soon" = the order-by date is within two weeks
+export const ORDER_SOON_DAYS = 14; // "order soon" = the order-by date is within two weeks
 const NEVER = "9999-12-31"; // sellable-until for stock that won't expire within the projection
 const EPS = 1e-9; // ignore floating-point crumbs when checking "anything left?"
 

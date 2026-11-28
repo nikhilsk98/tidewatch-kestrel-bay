@@ -1,16 +1,17 @@
 import { formatDate, formatDaysFrom, formatQty } from "@/lib/format";
 import { actionFor, flagsFor } from "@/lib/planLabels";
+import type { HandledNote } from "@/lib/handled";
 import type { ItemPlan } from "@/lib/projection";
 import { Pill } from "./Pill";
 
 type Props = {
   plan: ItemPlan;
-  handled: boolean;
+  handledNote: HandledNote | undefined; // the newest active note, if any
   projectionWeeks: number;
   onReview: (code: string) => void;
 };
 
-export function WorklistRow({ plan, handled, projectionWeeks, onReview }: Props) {
+export function WorklistRow({ plan, handledNote, projectionWeeks, onReview }: Props) {
   const action = actionFor(plan, projectionWeeks);
   const flags = flagsFor(plan);
   const late = plan.daysUntilOrderBy !== null && plan.daysUntilOrderBy <= 0;
@@ -26,9 +27,9 @@ export function WorklistRow({ plan, handled, projectionWeeks, onReview }: Props)
         <p className="text-xs text-ink-muted">
           {plan.itemCode} · {plan.vendorName}
         </p>
-        {handled && (
-          <p className="mt-1">
-            <Pill tone="plain">Handled</Pill>
+        {handledNote && (
+          <p className="mt-1 text-xs text-ink-muted">
+            <Pill tone="plain">Handled</Pill> {handledNote.note}
           </p>
         )}
       </td>

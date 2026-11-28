@@ -7,18 +7,19 @@ import type { Risk } from "./worklistView";
 type Props = {
   plans: ItemPlan[];
   stuckSummary: StuckSummary;
+  orderSoonDays: number;
   risk: Risk;
   onRisk: (risk: Risk) => void;
 };
 
 const cardBase =
-  "flex flex-col rounded-2xl border bg-card p-5 text-left shadow-sm transition-colors hover:border-control";
+  "flex flex-col rounded-2xl border bg-card p-4 text-left shadow-sm transition-colors hover:border-control sm:p-5";
 
 /**
  * Four counts, each filtering the worklist. The groups overlap (an item can
  * be "order now" and rely on vendor dates), so they are never added up.
  */
-export function SummaryCards({ plans, stuckSummary, risk, onRisk }: Props) {
+export function SummaryCards({ plans, stuckSummary, orderSoonDays, risk, onRisk }: Props) {
   const count = (test: (p: ItemPlan) => boolean) => plans.filter(test).length;
   const cards: { risk: Risk; title: string; value: number; definition: string; accent: string }[] = [
     {
@@ -32,7 +33,7 @@ export function SummaryCards({ plans, stuckSummary, risk, onRisk }: Props) {
       risk: "order soon",
       title: "Order soon",
       value: count((p) => p.status === "order soon"),
-      definition: "Order-by date is within the next 14 days",
+      definition: `Order-by date is within the next ${orderSoonDays} days`,
       accent: "text-ink",
     },
     {
@@ -46,7 +47,7 @@ export function SummaryCards({ plans, stuckSummary, risk, onRisk }: Props) {
 
   return (
     <section aria-label="Summary" className="mt-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {cards.map((card) => {
           const selected = risk === card.risk;
           return (
@@ -58,7 +59,7 @@ export function SummaryCards({ plans, stuckSummary, risk, onRisk }: Props) {
               className={`${cardBase} ${selected ? "border-kelp ring-2 ring-seaglass" : "border-line"}`}
             >
               <span className="text-sm font-medium text-ink-muted">{card.title}</span>
-              <span className={`mt-1 text-3xl font-semibold tabular-nums ${card.accent}`}>
+              <span className={`mt-1 text-2xl font-semibold tabular-nums sm:text-3xl ${card.accent}`}>
                 {card.value} <span className="text-base font-normal text-ink-muted">items</span>
               </span>
               <span className="mt-1 text-sm text-ink-muted">{card.definition}</span>
@@ -71,7 +72,7 @@ export function SummaryCards({ plans, stuckSummary, risk, onRisk }: Props) {
 
         <a href="#stock-to-clear" className={`${cardBase} border-line`}>
           <span className="text-sm font-medium text-ink-muted">Stock to clear</span>
-          <span className="mt-1 text-3xl font-semibold tabular-nums">
+          <span className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl">
             {stuckSummary.lots} <span className="text-base font-normal text-ink-muted">lots</span>
           </span>
           <span className="mt-1 text-sm text-ink-muted">
